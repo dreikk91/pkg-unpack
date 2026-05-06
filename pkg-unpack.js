@@ -142,7 +142,10 @@ function writeFile(outPath, content, binary = false) {
 
 // ── 4. Webpack модулі з //# sourceURL ────────────────────────────────────────
 
-const payloadText = payloadBuf.toString('utf8');
+// Для пошуку маркерів потрібні byte-stable індекси. UTF-8 рядок не підходить,
+// бо payload містить V8 bytecode/binary blobs і рядкові індекси з'їжджають
+// відносно Buffer offsets. latin1 дає 1 символ = 1 байт.
+const payloadText = payloadBuf.toString('latin1');
 
 const SOURCE_URL_RE = /\/\/#\s*sourceURL=webpack:\/\/([^?]+)\?/g;
 const entries = [];
@@ -267,7 +270,7 @@ for (let i = 0; i < moduleEntries.length; i++) {
 
   // Код від кінця запису до наступного запису або sourceURL
   const nextIndex = i + 1 < moduleEntries.length ? moduleEntries[i + 1].index : payloadText.length;
-  let code = payloadText.slice(entry.end, nextIndex);
+  let code = normalizeEncoding(payloadBuf.slice(entry.end, nextIndex));
 
   // Прибрати webpack closure в кінці: /***/ }),  або /***/ })
   code = code.replace(/\s*\/\*{3}\/\s*\}[)\s,]*$/, '').trim();
